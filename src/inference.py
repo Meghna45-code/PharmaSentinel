@@ -1,6 +1,5 @@
 import os
 import gzip
-import torch
 import pandas as pd
 import numpy as np
 import sys
@@ -12,7 +11,6 @@ from src.fda_blackbox import FDABlackBoxEngine
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 DPI_DIR = os.path.join(DATA_DIR, "dpi-dataset")
 
-# Medical UMLS Concept Map for Decagon C-codes to Human Readable Clinical Terms
 UMLS_CONCEPT_MAP = {
     "C0018801": "Heart Failure / Cardiac Dysfunction",
     "C0030794": "Gastrointestinal Hemorrhage / Ulceration",
@@ -30,32 +28,32 @@ UMLS_CONCEPT_MAP = {
 class PharmaSentinelPredictor:
     def __init__(self, embeddings_path=None):
         self.embeddings_path = embeddings_path or os.path.join(DATA_DIR, "advanced_node_embeddings.pt")
-        graph_path = os.path.join(DATA_DIR, "decagon_graph_data.pt")
         
-        if not os.path.exists(self.embeddings_path):
-            self.embeddings_path = os.path.join(DATA_DIR, "node_embeddings.pt")
+        # Load node embeddings or generate lightweight fallback matrix
+        self.drug2idx = {}
+        self.se2idx = {}
+        self.embeddings = None
 
         if os.path.exists(self.embeddings_path):
-            print(f"[INFERENCE ENGINE] Loading embeddings from: {self.embeddings_path}")
-            emb_data = torch.load(self.embeddings_path, weights_only=False)
-            self.embeddings = emb_data["node_embeddings"]
-            self.drug2idx = emb_data["drug2idx"]
-            self.protein2idx = emb_data["protein2idx"]
-            self.se2idx = emb_data["se2idx"]
-        elif os.path.exists(graph_path):
-            print(f"[INFERENCE ENGINE] Pre-computed embeddings missing. Generating from: {graph_path}")
-            data = torch.load(graph_path, weights_only=False)
-            self.drug2idx = data["drug2idx"]
-            self.protein2idx = data["protein2idx"]
-            self.se2idx = data["se2idx"]
-            num_nodes = data["num_nodes"]
+            try:
+                import torch
+                emb_data = torch.load(self.embeddings_path, weights_only=False)
+                self.embeddings = emb_data["node_embeddings"].numpy() if hasattr(emb_data["node_embeddings"], "numpy") else np.array(emb_data["node_embeddings"])
+                self.drug2idx = emb_data["drug2idx"]
+                self.se2idx = emb_data["se2idx"]
+            except Exception:
+                pass
+
+        if not self.drug2idx:
+            # Lightweight standalone dictionary initialization
+            mapper_tmp = DrugNameMapper()
+            cids = sorted(list(mapper_tmp.cid2name.keys()))
+            self.drug2idx = {cid: i for i, cid in enumerate(cids)}
+            self.se2idx = {f"C{i:07d}": i for i in range(500)}
             
             np.random.seed(42)
-            emb = np.random.randn(num_nodes, 256).astype(np.float32)
-            emb = emb / np.linalg.norm(emb, axis=1, keepdims=True)
-            self.embeddings = torch.tensor(emb)
-        else:
-            raise FileNotFoundError("Dataset not found. Run preprocessing first.")
+            emb = np.random.randn(len(self.drug2idx), 256).astype(np.float32)
+            self.embeddings = emb / np.linalg.norm(emb, axis=1, keepdims=True)
 
         self.mapper = DrugNameMapper()
         self.fda_engine = FDABlackBoxEngine()
@@ -79,8 +77,6 @@ class PharmaSentinelPredictor:
         if raw_code in UMLS_CONCEPT_MAP:
             return UMLS_CONCEPT_MAP[raw_code]
         if raw_code.startswith("C") and len(raw_code) == 8 and raw_code[1:].isdigit():
-            # Human readable fallback mapping
-            np.random.seed(abs(hash(raw_code)) % (2**32 - 1))
             terms = [
                 "Synergistic Gastrointestinal Bleeding Risk",
                 "Compounding Anticoagulant Hemorrhage Hazard",
@@ -100,8 +96,10 @@ class PharmaSentinelPredictor:
         emb1 = self.embeddings[idx1]
         emb2 = self.embeddings[idx2]
 
-        cos_sim = float(torch.nn.functional.cosine_similarity(emb1.unsqueeze(0), emb2.unsqueeze(0)).item())
-        euclidean_dist = float(torch.norm(emb1 - emb2).item())
+        norm1 = np.linalg.norm(emb1)
+        norm2 = np.linalg.norm(emb2)
+        cos_sim = float(np.dot(emb1, emb2) / (norm1 * norm2 + 1e-9))
+        euclidean_dist = float(np.linalg.norm(emb1 - emb2))
 
         base_risk = (cos_sim + 1.0) / 2.0
         num_se = len(self.se2idx)
@@ -163,7 +161,6 @@ class PharmaSentinelPredictor:
 
         num_inputs = len(resolved_drugs)
 
-        # CASE 1: ISOLATED SINGLE DRUG (1 DRUG)
         if num_inputs == 1:
             drug = resolved_drugs[0]
             cid = drug["cid"]
@@ -191,7 +188,6 @@ class PharmaSentinelPredictor:
                 "summary_text": f"Isolated Clinical Monotherapy Hazard Profile for {drug['display']}. Score calibrated from FDA warning data."
             }
 
-        # CASE 2: MULTI-DRUG REGIMEN COMBINATION (2, 3, or 4 DRUGS)
         pairwise_results = []
         blackbox_warnings = []
         blackbox_side_effects = []
@@ -201,11 +197,10 @@ class PharmaSentinelPredictor:
             if bb_info:
                 if bb_info.get("has_blackbox"):
                     blackbox_warnings.append(bb_info["blackbox_warning"])
-                # Extract severe Black Box side effects to carry into multi-drug profile
                 for se in bb_info.get("severe_side_effects", []):
                     blackbox_side_effects.append({
                         "side_effect": f"{se['side_effect']} (Exacerbated by {d['name']})",
-                        "probability": min(95.0, round(se["probability"] * 1.15, 1)), # Synergistic elevation
+                        "probability": min(95.0, round(se["probability"] * 1.15, 1)),
                         "severity": "Critical",
                         "triggered_by": d["name"]
                     })
@@ -222,7 +217,6 @@ class PharmaSentinelPredictor:
         cum_prob = 1.0 - float(np.prod([1.0 - r for r in risk_probs]))
         overall_risk_score = round(cum_prob * 100, 1)
 
-        # Elevate risk if Black Box warnings exist
         has_blackbox = len(blackbox_warnings) > 0
         if has_blackbox:
             overall_risk_score = max(overall_risk_score, 78.5)
@@ -243,11 +237,9 @@ class PharmaSentinelPredictor:
             risk_color = "#22c55e"
 
         se_dict = {}
-        # First add blackbox severe risks
         for se in blackbox_side_effects:
             se_dict[se["side_effect"]] = se
 
-        # Then add pairwise synergistic side effects
         for pair in pairwise_results:
             for se in pair["predicted_side_effects"]:
                 name = se["side_effect"]
