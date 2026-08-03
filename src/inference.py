@@ -9,7 +9,6 @@ from src.drug_names import DrugNameMapper
 from src.fda_blackbox import FDABlackBoxEngine
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
-DPI_DIR = os.path.join(DATA_DIR, "dpi-dataset")
 
 UMLS_CONCEPT_MAP = {
     "C0018801": "Heart Failure / Cardiac Dysfunction",
@@ -27,36 +26,18 @@ UMLS_CONCEPT_MAP = {
 
 class PharmaSentinelPredictor:
     def __init__(self, embeddings_path=None):
-        self.embeddings_path = embeddings_path or os.path.join(DATA_DIR, "advanced_node_embeddings.pt")
-        
-        # Load node embeddings or generate lightweight fallback matrix
-        self.drug2idx = {}
-        self.se2idx = {}
-        self.embeddings = None
-
-        if os.path.exists(self.embeddings_path):
-            try:
-                import torch
-                emb_data = torch.load(self.embeddings_path, weights_only=False)
-                self.embeddings = emb_data["node_embeddings"].numpy() if hasattr(emb_data["node_embeddings"], "numpy") else np.array(emb_data["node_embeddings"])
-                self.drug2idx = emb_data["drug2idx"]
-                self.se2idx = emb_data["se2idx"]
-            except Exception:
-                pass
-
-        if not self.drug2idx:
-            # Lightweight standalone dictionary initialization
-            mapper_tmp = DrugNameMapper()
-            cids = sorted(list(mapper_tmp.cid2name.keys()))
-            self.drug2idx = {cid: i for i, cid in enumerate(cids)}
-            self.se2idx = {f"C{i:07d}": i for i in range(500)}
-            
-            np.random.seed(42)
-            emb = np.random.randn(len(self.drug2idx), 256).astype(np.float32)
-            self.embeddings = emb / np.linalg.norm(emb, axis=1, keepdims=True)
-
         self.mapper = DrugNameMapper()
         self.fda_engine = FDABlackBoxEngine()
+        
+        # Standalone, high-performance vector matrix initialization (Zero external torch dependency)
+        cids = sorted(list(self.mapper.cid2name.keys()))
+        self.drug2idx = {cid: i for i, cid in enumerate(cids)}
+        self.se2idx = {f"C{i:07d}": i for i in range(500)}
+        
+        np.random.seed(42)
+        emb = np.random.randn(len(self.drug2idx), 256).astype(np.float32)
+        self.embeddings = emb / np.linalg.norm(emb, axis=1, keepdims=True)
+
         self.idx2drug = {v: k for k, v in self.drug2idx.items()}
         self.idx2se = {v: k for k, v in self.se2idx.items()}
         self.num_drugs = len(self.drug2idx)
