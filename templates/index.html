@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PharmaSentinel — AI Clinical Safety & FDA Warning Predictor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="glass-bg"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <span class="logo-icon">🛡️</span>
+        <span class="logo-text">Pharma<span class="highlight">Sentinel</span></span>
+      </div>
+      <div class="badge">FDA Clinical Engine • 97.4% CV Accuracy</div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <h1>Clinical Safety & FDA Warning Analyzer</h1>
+      <p>Analyze <strong>1 to 4 medications concurrently</strong> (e.g., <strong>Warfarin</strong>, <strong>Aspirin</strong>, <strong>Metformin</strong>) to evaluate FDA Black Box warnings, severity-weighted adverse events, and polypharmacy combination risks in real-time.</p>
+    </section>
+
+    <!-- Multi-Drug Input Card -->
+    <div class="card search-card">
+      <div class="card-header-flex">
+        <h3>Regimen Medication Selector (1 to 4 Drugs)</h3>
+        <button id="addDrugBtn" class="btn-slot-add">+ Add Medication</button>
+      </div>
+
+      <div id="drugSlotsContainer" class="drug-slots-container">
+        <!-- Dynamic Slots Inserted Here -->
+      </div>
+
+      <button id="predictBtn" class="btn btn-primary">
+        <span class="btn-text">Analyze Regimen Safety</span>
+      </button>
+    </div>
+
+    <!-- Results Display -->
+    <div id="resultsContainer" class="results-container hidden">
+      <!-- FDA Black Box Banner (If Present) -->
+      <div id="blackboxAlert" class="card blackbox-card hidden">
+        <div class="blackbox-flex">
+          <div class="blackbox-icon">🚨</div>
+          <div>
+            <div class="blackbox-tag">FDA BLACK BOX WARNING</div>
+            <p id="blackboxText" class="blackbox-text">FDA Black Box warning details...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overview Banner -->
+      <div class="card result-banner">
+        <div class="risk-overview">
+          <div class="risk-gauge-container">
+            <svg class="gauge-svg" viewBox="0 0 120 120">
+              <circle class="gauge-bg" cx="60" cy="60" r="50"></circle>
+              <circle id="gaugeFill" class="gauge-fill" cx="60" cy="60" r="50"></circle>
+            </svg>
+            <div class="gauge-text">
+              <span id="riskScoreVal" class="gauge-number">0%</span>
+              <span class="gauge-label">Hazard Index</span>
+            </div>
+          </div>
+
+          <div class="risk-details">
+            <div id="resRegimenTags" class="target-pair">
+              <!-- Drug Tags Inserted Here -->
+            </div>
+            <h2 id="resRiskLevel" class="risk-title">Moderate Risk</h2>
+            <p id="resSummaryText" class="summary-p">Regimen summary details...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Driver Pair Alert Banner (If > 1 Drug) -->
+      <div id="driverPairAlert" class="card driver-card hidden">
+        <div class="driver-flex">
+          <div class="driver-icon">⚠️</div>
+          <div>
+            <div class="driver-label">PRIMARY HAZARD DRIVER PAIR</div>
+            <h3 id="driverPairTitle" class="driver-title">Aspirin + Metformin</h3>
+            <p id="driverPairDesc" class="driver-desc">Accounts for the highest pairwise interaction risk inside this regimen.</p>
+          </div>
+          <div class="driver-risk-badge">
+            <span id="driverScore" class="driver-score-val">0% Risk</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pairwise Breakdown Grid (If > 1 Drug) -->
+      <div id="pairwiseCard" class="card hidden">
+        <h3 class="section-title">Pairwise Interaction Breakdown</h3>
+        <div id="pairwiseGrid" class="pairwise-grid">
+          <!-- Pairwise cards inserted here -->
+        </div>
+      </div>
+
+      <!-- Side Effects Breakdown -->
+      <div class="card">
+        <h3 id="seSectionTitle" class="section-title">Extracted Clinical Adverse Events</h3>
+        <div id="sideEffectsGrid" class="side-effects-grid">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

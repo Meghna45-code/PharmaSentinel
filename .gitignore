@@ -1,0 +1,22 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+.venv
+.idea/
+.vscode/
+*.log
+.DS_Store
+
+# Large datasets and raw graph tensors (downloaded dynamically or stored separately)
+data/dpi-dataset/
+input/
+*.gz
+*.pkl
+data/decagon_graph_data.pt
+data/processed/
+models/
