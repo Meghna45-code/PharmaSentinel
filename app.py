@@ -1,6 +1,6 @@
 import os
 import sys
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -18,6 +18,10 @@ predictor = PharmaSentinelPredictor()
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/static/<path:filename>")
+def serve_static(filename):
+    return send_from_directory(os.path.join(BASE_DIR, "static"), filename)
 
 @app.route("/api/drugs", methods=["GET"])
 def get_drugs():
