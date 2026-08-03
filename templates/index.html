@@ -7,6 +7,42 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  
+  <!-- Critical Inlined Design Tokens for Instant Headless Screenshot Rendering -->
+  <style>
+    :root {
+      --berry-ice: #BFD7F1;
+      --mauve-blush: #FFD5EA;
+      --deep-berry-plum: #48123E;
+      --bg-color: #150314;
+      --card-bg: rgba(72, 18, 62, 0.65);
+      --card-border: rgba(255, 213, 234, 0.25);
+      --text-main: #FFD5EA;
+      --text-pure: #ffffff;
+    }
+    body {
+      background-color: #150314 !important;
+      color: #FFD5EA !important;
+      font-family: 'Outfit', 'Inter', sans-serif !important;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+      background: radial-gradient(circle at 50% 10%, rgba(72, 18, 62, 0.85), transparent 60%),
+                  radial-gradient(circle at 80% 80%, rgba(255, 213, 234, 0.2), transparent 65%) !important;
+    }
+    .card {
+      background: rgba(72, 18, 62, 0.65) !important;
+      border: 1px solid rgba(255, 213, 234, 0.25) !important;
+      border-radius: 20px !important;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5) !important;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #48123E 0%, #8a2478 50%, #FFD5EA 100%) !important;
+      color: #ffffff !important;
+      border: 1px solid rgba(255, 213, 234, 0.3) !important;
+    }
+  </style>
+
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
