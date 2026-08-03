@@ -2,10 +2,17 @@ import os
 import sys
 from flask import Flask, render_template, jsonify, request
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(
+    __name__,
+    template_folder=os.path.join(BASE_DIR, "templates"),
+    static_folder=os.path.join(BASE_DIR, "static")
+)
+
+sys.path.append(BASE_DIR)
 from src.inference import PharmaSentinelPredictor
 
-app = Flask(__name__)
 predictor = PharmaSentinelPredictor()
 
 @app.route("/")
@@ -21,7 +28,6 @@ def get_drugs():
 def predict():
     data = request.get_json(force=True, silent=True) or request.form or request.args or {}
     
-    # Handle array of drugs or individual drug parameters
     drugs = data.get("drugs")
     if not drugs:
         d1 = data.get("drug1")
